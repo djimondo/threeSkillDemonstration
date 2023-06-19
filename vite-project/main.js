@@ -62,8 +62,8 @@ scene.add( grid );
 window.addEventListener( 'resize', onWindowResize );
 
 
-//load actor1
-await loadactor1s();
+//load actors asyncronysly
+await loadactors();
 createGUI(animations);
 
 
@@ -80,10 +80,10 @@ function animate() {
   }
 
   if(areActorsFacingEachother()) {
-    actor2.material.color.set(0x28bd32);
+    actor2.children[0].material.color.set(0x28bd32);
   }
   else {
-    actor2.material.color.set(0x8f0000);
+    actor2.children[0].material.color.set(0x8f0000);
   }
 
   requestAnimationFrame( animate );
@@ -91,8 +91,8 @@ function animate() {
   
 }
 
-//loads in the actor1s needed for the scene
-async function loadactor1s() {
+//loads in the actors needed for the scene
+async function loadactors() {
   loader = new GLTFLoader();
   let gltf = await loader.loadAsync("ed.glb");
   actor1 = gltf.scene.children[0];
@@ -101,9 +101,11 @@ async function loadactor1s() {
   scene.add(actor1);
 
   gltf = await loader.loadAsync("glozface.glb");
+  
   actor2 = gltf.scene.children[0];
-  actor2.scale.set(.15, .15, .15);
+  actor2.scale.set(1, 1, 1);
   actor2.position.set(2, 0, 2);
+  console.log(actor2);
   scene.add(actor2);
 
 }
@@ -117,10 +119,21 @@ function createGUI( animations) {
   let ed = actor1.getObjectByName("ED2");
   //change from expressions to singular tense
   gui.add( ed.morphTargetInfluences, 0, 0, 1, 0.01).name( 'talking shape key' );
-  gui.add(actor2.rotation, 'y', 0.01, 2* Math.PI);
   const clip = animations[ 0 ];
   activeAction = mixer.clipAction( clip );
   activeAction.play();
+
+
+  gui.add(actor2.rotation, 'y', 0.01, 2* Math.PI).name("actor2 y rotation");
+  gui.add(actor2.position, 'y', 0, 2, 0.1).name("actor2 y position");
+
+
+  let obj = {
+    findBone: function() {alert(findClosestBone())}
+  }
+  gui.add(obj, 'findBone').name("Find Closest bone");
+
+
 }
 
 function onWindowResize() {
@@ -132,7 +145,8 @@ function onWindowResize() {
 
 }
 
-/* calculates if actor1 and actor2 are facing eachother
+/* 
+ * calculates if actor1 and actor2 are facing eachother
  * Achieved by taking the dot product of each actor with
  * the relativeDirection vector of the two actors
  * using the result of this dot product it can be determined
@@ -163,6 +177,32 @@ function areActorsFacingEachother() {
 
   // Compare dot products and return if they are facing eachother
   return (dotProduct1 > 0 && dotProduct2 < 0);
+}
 
- 
+/*
+ * Returns a string of the closest bone of actor1 to actor2's root bone
+ */
+function findClosestBone() {
+  const actor2BonePosition = new THREE.Vector3();
+  actor2.children[1].getWorldPosition(actor2BonePosition);
+  let closestDistance = Infinity;
+  let closestBone = null;
+
+  actor1.traverse((child) => {
+    if(child.isBone) {
+      const distance  = child.getWorldPosition(new THREE.Vector3).distanceTo(actor2BonePosition);
+      if(closestDistance > distance) {
+        closestDistance = distance;
+        closestBone = child;
+      }
+    }
+  })
+
+  return closestBone.name + " at " + stringifyVector3(closestBone.getWorldPosition(new THREE.Vector3)) 
+  + "\n" + "Distance: " + closestDistance;
+}
+
+//returns a string representation of THREE.Vector3, to 3 points of precision
+function stringifyVector3(vector3) {
+ return "(" +  vector3.x.toFixed(3) + ", " + vector3.y.toFixed(3) + ", " + vector3.z.toFixed(3) + ")";
 }
