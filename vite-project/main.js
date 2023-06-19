@@ -8,9 +8,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 let scene = new THREE.Scene();
 let gui, mixer, actions, activeAction, loader, actor1, actor2, animations, areFacingEachother;
 let loggedWorldCoordinates = false;
-//remove
-areFacingEachother = true;
 
+//scene set up
 const camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.25, 100 );
 const renderer = new THREE.WebGLRenderer({
   canvas: document.querySelector('#bg'),
@@ -27,6 +26,7 @@ controls.target.set( 0, 1, 2);
 
 renderer.setPixelRatio( window.devicePixelRatio );
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
 camera.position.setZ(30);
 
 camera.position.set( -1, 1.5, 5 );
@@ -38,20 +38,27 @@ scene.fog = new THREE.Fog( 0xe0e0e0, 20, 100 );
 
 let clock = new THREE.Clock();
 
-// lights
+// lights, taken from three.js examples
 
 const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x8d8d8d );
 hemiLight.position.set( 0, 20, 0 );
 scene.add( hemiLight );
 
 const dirLight = new THREE.DirectionalLight( 0xffffff );
+dirLight.castShadow = true;
+dirLight.shadow.camera.top = 4;
+dirLight.shadow.camera.bottom = - 4;
+dirLight.shadow.camera.left = - 4;
+dirLight.shadow.camera.right = 4;
+dirLight.shadow.camera.near = 0.1;
+dirLight.shadow.camera.far = 40;
 dirLight.position.set( 0, 20, 10 );
 scene.add( dirLight );
 
-// ground
-
+// ground, taken from three.js examples
 const mesh = new THREE.Mesh( new THREE.PlaneGeometry( 2000, 2000 ), new THREE.MeshPhongMaterial( { color: 0xcbcbcb, depthWrite: false } ) );
 mesh.rotation.x = - Math.PI / 2;
+mesh.receiveShadow = true;
 scene.add( mesh );
 
 const grid = new THREE.GridHelper( 200, 40, 0x000000, 0x000000 );
@@ -62,12 +69,8 @@ scene.add( grid );
 window.addEventListener( 'resize', onWindowResize );
 
 
-//load actors asyncronysly
 await loadactors();
 createGUI(animations);
-
-
-
 animate();
 
 function animate() {
@@ -75,7 +78,7 @@ function animate() {
   if ( mixer ) mixer.update( dt );
   //at 9 seconds log the world coordinates
   if(clock.elapsedTime > 1 && !loggedWorldCoordinates) {
-    console.log("vertex position at time: " + clock.elapsedTime + " : (" + actor1.position.x + ", " + actor1.position.y + ", " + actor1.position.z + ")");
+    alert("vertex position at time: " + clock.elapsedTime + " " + stringifyVector3(actor1.getWorldPosition(new THREE.Vector3)));
     loggedWorldCoordinates = true;
   }
 
@@ -96,6 +99,12 @@ async function loadactors() {
   loader = new GLTFLoader();
   let gltf = await loader.loadAsync("ed.glb");
   actor1 = gltf.scene.children[0];
+  actor1.traverse( (child => {
+    if(child.isMesh){
+      child.castShadow = true;
+    }
+  }))
+  
   //actor1.position.set(0, 0, 0)
   animations = gltf.animations;
   scene.add(actor1);
@@ -103,6 +112,11 @@ async function loadactors() {
   gltf = await loader.loadAsync("glozface.glb");
   
   actor2 = gltf.scene.children[0];
+  actor2.traverse( (child => {
+    if(child.isMesh){
+      child.castShadow = true;
+    }
+  }))
   actor2.scale.set(1, 1, 1);
   actor2.position.set(2, 0, 2);
   console.log(actor2);
