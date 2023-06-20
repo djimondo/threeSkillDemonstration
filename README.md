@@ -14,6 +14,6 @@ After 9 seconds there will be an alert of the actors mesh vertex, at an exact ti
 
 For fun, use the slider to make actor 1 talk, by changing the influence of his shape key.
 
-##Build
+## Build
 For dev, just run the command **vite**
 To build, **vite build**
