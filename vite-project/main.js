@@ -144,7 +144,7 @@ function createGUI( animations) {
   let obj = {
     findBone: function() {alert(findClosestBone())}
   }
-  gui.add(obj, 'findBone').name("Find Closest bone");
+  gui.add(obj, 'findBone').name("Find Closest Bone");
 
 
 }
