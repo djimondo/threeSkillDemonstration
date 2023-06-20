@@ -16,4 +16,5 @@ For fun, use the slider to make actor 1 talk, by changing the influence of his s
 
 ## Build
 For dev, just run the command **vite**
+
 To build, **vite build**
