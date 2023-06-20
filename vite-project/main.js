@@ -77,7 +77,7 @@ function animate() {
   const dt = clock.getDelta();
   if ( mixer ) mixer.update( dt );
   //at 9 seconds log the world coordinates
-  if(clock.elapsedTime > 1 && !loggedWorldCoordinates) {
+  if(clock.elapsedTime > 9 && !loggedWorldCoordinates) {
     alert("vertex position at time: " + clock.elapsedTime + " " + stringifyVector3(actor1.getWorldPosition(new THREE.Vector3)));
     loggedWorldCoordinates = true;
   }
@@ -119,7 +119,6 @@ async function loadactors() {
   }))
   actor2.scale.set(1, 1, 1);
   actor2.position.set(2, 0, 2);
-  console.log(actor2);
   scene.add(actor2);
 
 }
