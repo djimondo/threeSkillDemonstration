@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 let scene = new THREE.Scene();
-let gui, mixer, actions, activeAction, loader, actor1, actor2, animations, areFacingEachother;
+let gui, mixer, actions, activeAction, loader, actor1, actor2, animations, obj, vertexPoint;
 let loggedWorldCoordinates = false;
 
 //scene set up
@@ -66,6 +66,13 @@ grid.material.opacity = 0.2;
 grid.material.transparent = true;
 scene.add( grid );
 
+//add dot indicator
+let dot = new THREE.SphereGeometry(.01);
+let redMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+vertexPoint = new THREE.Mesh(dot, redMat);
+scene.add(vertexPoint);
+
+
 window.addEventListener( 'resize', onWindowResize );
 
 
@@ -77,10 +84,11 @@ function animate() {
   const dt = clock.getDelta();
   if ( mixer ) mixer.update( dt );
   //at 9 seconds log the world coordinates
+  /*
   if(clock.elapsedTime > 9 && !loggedWorldCoordinates) {
     alert("vertex position at time: " + clock.elapsedTime + " " + stringifyVector3(actor1.getWorldPosition(new THREE.Vector3)));
     loggedWorldCoordinates = true;
-  }
+  }*/
 
   if(areActorsFacingEachother()) {
     actor2.children[0].material.color.set(0x28bd32);
@@ -137,14 +145,24 @@ function createGUI( animations) {
   activeAction.play();
 
 
+  
+  gui.add(actor1.rotation, 'y', 0.01, 2* Math.PI).name("actor1 y rotation");
   gui.add(actor2.rotation, 'y', 0.01, 2* Math.PI).name("actor2 y rotation");
   gui.add(actor2.position, 'y', 0, 2, 0.1).name("actor2 y position");
 
-
-  let obj = {
-    findBone: function() {alert(findClosestBone())}
+  
+  obj = {
+    facingInfluence: 0.9,
+    vertexIndex: 0,
+    findBone: function() {alert(findClosestBone())},
+    findVertex: function() {
+      console.log(stringifyVector3(getVertexPosition(obj.vertexIndex)) + " at: " + clock.elapsedTime);
+    }
   }
+  gui.add(obj, 'facingInfluence', 0, 1, 0.01);
+  gui.add(obj, 'vertexIndex', 0, ed.geometry.attributes.position.count-1, 1);
   gui.add(obj, 'findBone').name("Find Closest Bone");
+  gui.add(obj, 'findVertex').name("Find Vertex Position");
 
 
 }
@@ -189,7 +207,8 @@ function areActorsFacingEachother() {
   const dotProduct2 = direction2.dot(relativeDirection);
 
   // Compare dot products and return if they are facing eachother
-  return (dotProduct1 > 0 && dotProduct2 < 0);
+  let scaled = obj.facingInfluence;
+  return (dotProduct1 > scaled && dotProduct2 < (-1*scaled));
 }
 
 /*
@@ -213,6 +232,53 @@ function findClosestBone() {
 
   return closestBone.name + " at " + stringifyVector3(closestBone.getWorldPosition(new THREE.Vector3)) 
   + "\n" + "Distance: " + closestDistance;
+}
+
+function getVertexPosition(vertexIndex) {
+  let actor1Mesh = actor1.getObjectByName("ED2");
+  let geometry = actor1Mesh.geometry;
+  
+  let position = new THREE.Vector3();
+  position.fromBufferAttribute(geometry.attributes.position, vertexIndex);
+  
+  let skinIndices = new THREE.Vector4();
+  skinIndices.fromBufferAttribute(geometry.attributes.skinIndex, vertexIndex);
+  let skinWeights = new THREE.Vector4();
+  skinWeights.fromBufferAttribute(geometry.attributes.skinWeight, vertexIndex);
+  
+  let boneMatrices = actor1Mesh.skeleton.boneMatrices;
+
+  let morphedPosition = position.clone();
+
+  // Apply the morph targets to the position.
+  for (let i = 0; i < geometry.morphAttributes.position.length; i++) {
+    let influence = actor1Mesh.morphTargetInfluences[i];
+    if (influence !== 0) {
+      let morphAttribute = geometry.morphAttributes.position[i];
+      let morphTargetPosition = new THREE.Vector3();
+      morphTargetPosition.fromBufferAttribute(morphAttribute, vertexIndex);
+      morphedPosition.addScaledVector(morphTargetPosition, influence);
+    }
+  }
+
+  let skinnedPosition = new THREE.Vector3();
+
+  for (let i = 0; i < 4; i++) {
+    let weight = skinWeights.getComponent(i);
+    if (weight !== 0) {
+      let boneMatrix = new THREE.Matrix4().fromArray(boneMatrices, skinIndices.getComponent(i) * 16);
+      let transformed = morphedPosition.clone().applyMatrix4(boneMatrix);
+      skinnedPosition.addScaledVector(transformed, weight);
+    }
+  }
+
+  // Convert from local space to world space.
+  actor1Mesh.localToWorld(skinnedPosition);
+  let result = skinnedPosition;
+
+  //update the indicator position
+  vertexPoint.position.set(result.x, result.y, result.z);
+  return result;  
 }
 
 //returns a string representation of THREE.Vector3, to 3 points of precision
